@@ -76,6 +76,56 @@ export const writeThemes = (
 
   let newFile = oldFile;
 
+  // First, replace all hardcoded Claude colors throughout the file
+  const theme = themes[0];
+  const claudeColor = theme.colors.claude;
+  const claudeShimmer = theme.colors.claudeShimmer || theme.colors.claude;
+
+  // Extract RGB values from color string
+  const extractRGB = (color: string): string | null => {
+    const match = color.match(/rgb\((\d+),(\d+),(\d+)\)/);
+    return match ? `${match[1]},${match[2]},${match[3]}` : null;
+  };
+
+  const claudeRGB = extractRGB(claudeColor);
+  const shimmerRGB = extractRGB(claudeShimmer);
+
+  // Default Claude colors to search for and replace
+  const defaultClaudeColors = [
+    { pattern: 'rgb(215,119,87)', rgb: '215,119,87', type: 'claude' },
+    { pattern: 'rgb(245,149,117)', rgb: '245,149,117', type: 'shimmer' },
+    { pattern: 'rgb(235,159,127)', rgb: '235,159,127', type: 'shimmer' },
+    { pattern: 'rgb(255,183,101)', rgb: '255,183,101', type: 'shimmer' },
+    { pattern: 'rgb(255,153,51)', rgb: '255,153,51', type: 'claude' },
+    { pattern: 'rgb(255,178,102)', rgb: '255,178,102', type: 'shimmer' },
+    { pattern: 'rgb(250,179,135)', rgb: '250,179,135', type: 'shimmer' },
+  ];
+
+  const colorReplacements: [RegExp, string][] = [];
+
+  if (claudeRGB && shimmerRGB) {
+    defaultClaudeColors.forEach(({ pattern, rgb, type }) => {
+      const replacement = type === 'claude' ? claudeColor : claudeShimmer;
+      const replacementRGB = type === 'claude' ? claudeRGB : shimmerRGB;
+
+      // Replace both full rgb() format and raw RGB values
+      colorReplacements.push(
+        [new RegExp(pattern.replace(/[()]/g, '\\$&'), 'g'), replacement],
+        [new RegExp(rgb, 'g'), replacementRGB]
+      );
+    });
+  }
+
+  // Apply color replacements
+  console.log('patch: themes: replacing hardcoded colors');
+  colorReplacements.forEach(([pattern, replacement]) => {
+    const matches = newFile.match(pattern);
+    if (matches) {
+      console.log(`  Replacing ${matches[0]} -> ${replacement} (${matches.length} occurrences)`);
+      newFile = newFile.replace(pattern, replacement);
+    }
+  });
+
   // Check if we're dealing with new structure (no objArr/obj)
   if (!locations.objArr || !locations.obj) {
     // New structure: replace both light and dark themes with our custom theme
