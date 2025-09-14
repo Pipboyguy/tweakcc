@@ -5,9 +5,9 @@ import { LocationResult, showDiff } from './index.js';
 export function getWelcomeMessageLocation(
   oldFile: string
 ): LocationResult | null {
-  // Pattern: " Welcome to ",q9.createElement(T,{bold:!0},"Claude Code"),"!"
+  // Pattern: Welcome to ",S8.default.createElement(M,{bold:!0},"Claude Code")
   const pattern =
-    /" Welcome to ",[$\w]+\.createElement\([^,]+,\{bold:!0\},"Claude Code"\),"!"/;
+    /Welcome to ",[$\w]+\.(?:default\.)?createElement\([^,]+,\{bold:!0\},"Claude Code"\)/;
   const match = oldFile.match(pattern);
 
   if (match && match.index !== undefined) {

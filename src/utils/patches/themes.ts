@@ -5,12 +5,12 @@ import { LocationResult, showDiff } from './index.js';
 
 function getThemesLocation(oldFile: string): {
   switchStatement: LocationResult;
-  objArr: LocationResult;
-  obj: LocationResult;
+  objArr: LocationResult | null;
+  obj: LocationResult | null;
 } | null {
-  // Look for switch statement pattern: switch(A){case"light":return ...;}
+  // Look for case statement pattern in LEA function: case"light":return{...}
   const switchPattern =
-    /switch\s*\(([^)]+)\)\s*\{[^}]*case\s*["']light["'][^}]+\}/s;
+    /case"light":return\{[^}]+\};/s;
   const switchMatch = oldFile.match(switchPattern);
 
   if (!switchMatch || switchMatch.index == undefined) {
@@ -18,26 +18,32 @@ function getThemesLocation(oldFile: string): {
     return null;
   }
 
+  // These patterns are optional for newer Claude Code versions
   const objArrPat = /\[(?:\{label:"(?:Dark|Light).+?",value:".+?"\},?)+\]/;
   const objPat = /return\{(?:[$\w]+?:"(?:Dark|Light).+?",?)+\}/;
   const objArrMatch = oldFile.match(objArrPat);
   const objMatch = oldFile.match(objPat);
 
-  if (!objArrMatch || objArrMatch.index == undefined) {
-    console.error('patch: themes: failed to find objArrMatch');
-    return null;
+  // For new structure (v1.0.113+), we only need the case statement
+  if (!objArrMatch || !objMatch || objArrMatch.index === undefined || objMatch.index === undefined) {
+    console.log('patch: themes: using simplified theme structure (CLI v1.0.113+)');
+    return {
+      switchStatement: {
+        startIndex: switchMatch.index,
+        endIndex: switchMatch.index + switchMatch[0].length,
+        identifiers: [],
+      },
+      objArr: null,
+      obj: null,
+    };
   }
 
-  if (!objMatch || objMatch.index == undefined) {
-    console.error('patch: themes: failed to find objMatch');
-    return null;
-  }
-
+  // Old structure (pre v1.0.113)
   return {
     switchStatement: {
       startIndex: switchMatch.index,
       endIndex: switchMatch.index + switchMatch[0].length,
-      identifiers: [switchMatch[1].trim()],
+      identifiers: [],
     },
     objArr: {
       startIndex: objArrMatch.index,
@@ -65,6 +71,29 @@ export const writeThemes = (
 
   let newFile = oldFile;
 
+  // Check if we're dealing with new structure (no objArr/obj)
+  if (!locations.objArr || !locations.obj) {
+    // New structure: just replace the case statement for "light"
+    // We'll inject our theme as the light theme
+    const themeColors = themes[0].colors;
+    const caseStatement = `case"light":return${JSON.stringify(themeColors)};`;
+
+    newFile =
+      newFile.slice(0, locations.switchStatement.startIndex) +
+      caseStatement +
+      newFile.slice(locations.switchStatement.endIndex);
+    showDiff(
+      oldFile,
+      newFile,
+      caseStatement,
+      locations.switchStatement.startIndex,
+      locations.switchStatement.endIndex
+    );
+
+    return newFile;
+  }
+
+  // Old structure code (keep for compatibility)
   // Process in reverse order to avoid index shifting
 
   // Update theme mapping object (obj)

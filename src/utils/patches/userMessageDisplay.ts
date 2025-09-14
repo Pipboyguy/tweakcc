@@ -52,7 +52,7 @@ const getUserMessageDisplayLocation = (
           startIndex: searchStart + minWidthMatch.index,
           endIndex: searchStart + minWidthMatch.index + minWidthMatch[0].length,
         }
-      : minWidthMatch,
+      : null,
     prefixLocation: prefixMatch
       ? {
           startIndex: searchStart + prefixMatch.index!,
@@ -64,7 +64,7 @@ const getUserMessageDisplayLocation = (
           startIndex: searchStart + messageMatch.index!,
           endIndex: searchStart + messageMatch.index! + messageMatch[0].length,
         }
-      : messageMatch,
+      : null,
   };
 };
 

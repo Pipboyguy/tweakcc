@@ -54,7 +54,7 @@ export function LaunchTextView({ onBack }: LaunchTextViewProps) {
 
   // Load available fonts on component mount
   useEffect(() => {
-    figlet.fonts((err, fonts) => {
+    figlet.fonts((err: Error | null, fonts?: string[]) => {
       if (!err && fonts) {
         const sortedFonts = fonts.sort();
         setAvailableFonts(sortedFonts);
@@ -87,7 +87,7 @@ export function LaunchTextView({ onBack }: LaunchTextViewProps) {
         // Truncate long lines and calculate preview width
         const availablePreviewWidth = Math.floor(terminalWidth * 0.7); // 60% of terminal for preview
         const lines = result.split('\n');
-        const truncatedLines = lines.map(line =>
+        const truncatedLines = lines.map((line: string) =>
           line.length > availablePreviewWidth
             ? line.substring(0, availablePreviewWidth - 3) + '\u2026'
             : line
@@ -97,7 +97,7 @@ export function LaunchTextView({ onBack }: LaunchTextViewProps) {
 
         // Calculate width based on truncated content
         const maxTruncatedLineLength = Math.max(
-          ...truncatedLines.map(line => line.length)
+          ...truncatedLines.map((line: string) => line.length)
         );
         const widthPercentage = Math.min(
           75,

@@ -138,7 +138,7 @@ export const applyCustomization = async (
         figlet.text(
           c.figletText.replace('\n', ' '),
           c.figletFont as unknown as figlet.Fonts,
-          (err, data) => {
+          (err: Error | null, data?: string) => {
             if (err) {
               console.error('patch: figlet: failed to generate text', err);
               resolve('');
