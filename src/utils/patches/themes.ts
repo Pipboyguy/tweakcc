@@ -8,10 +8,15 @@ function getThemesLocation(oldFile: string): {
   objArr: LocationResult | null;
   obj: LocationResult | null;
 } | null {
-  // Look for case statement pattern in LEA function: case"light":return{...}
-  const switchPattern =
-    /case"light":return\{[^}]+\};/s;
-  const switchMatch = oldFile.match(switchPattern);
+  // Look for both light and dark case statements in LEA function
+  const lightPattern = /case"light":return\{[^}]+\};/s;
+  const darkPattern = /case"dark":return\{[^}]+\};/s;
+
+  const lightMatch = oldFile.match(lightPattern);
+  const darkMatch = oldFile.match(darkPattern);
+
+  // Use whichever is found (prefer dark for most users)
+  const switchMatch = darkMatch || lightMatch;
 
   if (!switchMatch || switchMatch.index == undefined) {
     console.error('patch: themes: failed to find switchMatch');
@@ -73,10 +78,18 @@ export const writeThemes = (
 
   // Check if we're dealing with new structure (no objArr/obj)
   if (!locations.objArr || !locations.obj) {
-    // New structure: just replace the case statement for "light"
-    // We'll inject our theme as the light theme
+    // New structure: replace both light and dark themes with our custom theme
     const themeColors = themes[0].colors;
-    const caseStatement = `case"light":return${JSON.stringify(themeColors)};`;
+
+    // First, check which theme we found and replace it
+    const currentCase = oldFile.slice(locations.switchStatement.startIndex, locations.switchStatement.endIndex);
+    const isLightTheme = currentCase.startsWith('case"light"');
+    const isDarkTheme = currentCase.startsWith('case"dark"');
+
+    // Replace the found theme
+    const caseStatement = isLightTheme
+      ? `case"light":return${JSON.stringify(themeColors)};`
+      : `case"dark":return${JSON.stringify(themeColors)};`;
 
     newFile =
       newFile.slice(0, locations.switchStatement.startIndex) +
@@ -89,6 +102,33 @@ export const writeThemes = (
       locations.switchStatement.startIndex,
       locations.switchStatement.endIndex
     );
+
+    // Also try to replace the other theme if it exists
+    const otherPattern = isLightTheme
+      ? /case"dark":return\{[^}]+\};/s
+      : /case"light":return\{[^}]+\};/s;
+    const otherMatch = newFile.match(otherPattern);
+
+    if (otherMatch && otherMatch.index !== undefined) {
+      const otherCaseStatement = isLightTheme
+        ? `case"dark":return${JSON.stringify(themeColors)};`
+        : `case"light":return${JSON.stringify(themeColors)};`;
+
+      const finalFile =
+        newFile.slice(0, otherMatch.index) +
+        otherCaseStatement +
+        newFile.slice(otherMatch.index + otherMatch[0].length);
+
+      showDiff(
+        newFile,
+        finalFile,
+        otherCaseStatement,
+        otherMatch.index,
+        otherMatch.index + otherMatch[0].length
+      );
+
+      return finalFile;
+    }
 
     return newFile;
   }
